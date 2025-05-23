@@ -14,10 +14,11 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
       - name: Connect to VPS and deploy
-        run: |
-          ssh ${{ secrets.SERVER_IP }} "
-            cd /app;
-            git pull origin main;
-            docker-compose down;
-            docker-compose up -d
-          "
+        run: "echo {{ secrets.SSH_PRIVATE_KEY }}"
+        # run: |
+        #   ssh ${{ secrets.SERVER_IP }} "
+        #     cd /app;
+        #     git pull origin main;
+        #     docker-compose down;
+        #     docker-compose up -d
+        #   "
