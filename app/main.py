@@ -29,8 +29,8 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Mount static files
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
+# # Mount static files
+# app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 # Set up templates
 templates = Jinja2Templates(directory="app/templates")
