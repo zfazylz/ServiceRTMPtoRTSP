@@ -15,6 +15,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22
           script: |
+            echo ${{ github.repository }}
             REPO_URL="git@github.com:${{ github.repository }}.git"
             APP_DIR="/app"
 
