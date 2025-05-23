@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  rtsp-server:
+    image: aler9/rtsp-simple-server
+    ports:
+      - "8554:8554"
+    restart: always
+
+  web:
+    build: .
+    container_name: rtmp-to-rtsp-converter
+    ports:
+      # Web interface
+      - "8000:8000"
+      # RTSP ports (range for multiple streams)
+#      - "8554-8564:8554-8564"
+    volumes:
+      # Mount app directory for development (comment out in production)
+      - ./app:/app/app
+    restart: unless-stopped
+    # Add network_mode host to allow proper RTSP streaming
+    # This is needed for proper RTSP URL generation and access
+    # Uncomment the line below if you have issues with RTSP streaming
+    # network_mode: host
+    
+    # If using network_mode: host, comment out the ports section above
+    # as it's not compatible with host networking
+
+networks:
+  default:
+    driver: bridge
