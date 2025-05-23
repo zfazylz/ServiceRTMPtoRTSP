@@ -14,7 +14,7 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
       - name: Connect to VPS and deploy
-        run: "echo {{ secrets.SSH_PRIVATE_KEY }}"
+        run: "echo ${{ secrets.SERVER_IP }}"
         # run: |
         #   ssh ${{ secrets.SERVER_IP }} "
         #     cd /app;
