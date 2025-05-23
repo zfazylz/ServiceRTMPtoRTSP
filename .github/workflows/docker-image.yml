@@ -15,7 +15,7 @@ jobs:
           ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
       - name: Connect to VPS and deploy
         run: |
-          ssh user@${{ secrets.SERVER_IP }} "
+          ssh ${{ secrets.SERVER_IP }} "
             cd /app;
             git pull origin main;
             docker-compose down;
