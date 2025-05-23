@@ -72,7 +72,7 @@ class Stream(BaseModel):
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
     """Render the home page."""
-    streams = stream_manager.get_all_streams()
+    streams = stream_manager.get_all_streams(host=request.url.hostname)
     return templates.TemplateResponse(
         "index.html", 
         {"request": request, "streams": streams}
@@ -106,7 +106,8 @@ async def add_stream(
         success = stream_manager.add_stream(
             rtmp_url=stream_data.rtmp_url,
             rtsp_port=stream_data.rtsp_port,
-            stream_name=stream_data.stream_name
+            stream_name=stream_data.stream_name,
+            host=request.url.hostname
         )
 
         if not success:
@@ -142,25 +143,26 @@ async def delete_stream(stream_name: str):
     return RedirectResponse(url="/", status_code=303)
 
 @app.get("/api/streams", response_model=List[Stream])
-async def get_streams():
+async def get_streams(request: Request):
     """Get all streams (API endpoint)."""
-    return stream_manager.get_all_streams()
+    return stream_manager.get_all_streams(host=request.url.hostname)
 
 @app.get("/api/streams/{stream_name}", response_model=Stream)
-async def get_stream(stream_name: str):
+async def get_stream(stream_name: str, request: Request):
     """Get a specific stream (API endpoint)."""
-    stream = stream_manager.get_stream(stream_name)
+    stream = stream_manager.get_stream(stream_name, host=request.url.hostname)
     if not stream:
         raise HTTPException(status_code=404, detail=f"Stream '{stream_name}' not found")
     return stream
 
 @app.post("/api/streams", response_model=Stream)
-async def create_stream(stream: StreamCreate):
+async def create_stream(stream: StreamCreate, request: Request):
     """Create a new stream (API endpoint)."""
     success = stream_manager.add_stream(
         rtmp_url=stream.rtmp_url,
         rtsp_port=stream.rtsp_port,
-        stream_name=stream.stream_name
+        stream_name=stream.stream_name,
+        host=request.url.hostname
     )
 
     if not success:
@@ -169,7 +171,7 @@ async def create_stream(stream: StreamCreate):
             detail=f"Failed to add stream '{stream.stream_name}'. It may already exist or there was an error starting the converter."
         )
 
-    return stream_manager.get_stream(stream.stream_name)
+    return stream_manager.get_stream(stream.stream_name, host=request.url.hostname)
 
 @app.delete("/api/streams/{stream_name}")
 async def remove_stream(stream_name: str):
