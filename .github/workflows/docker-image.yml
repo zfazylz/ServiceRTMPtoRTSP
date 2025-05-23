@@ -7,7 +7,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Install SSH key
+      - name: Install SSH key and deploy
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -15,7 +15,18 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22
           script: |
-              cd /app;
-              git pull origin main;
-              docker-compose down;
-              docker-compose up -d;
+            REPO_URL="git@github.com:${{ github.repository }}.git"
+            APP_DIR="/app"
+
+            if [ -d "$APP_DIR/.git" ]; then
+              echo "Git repo found, pulling latest changes..."
+              cd "$APP_DIR" && git pull origin main
+            else
+              echo "Git repo not found, cloning fresh..."
+              mkdir -p "$APP_DIR"
+              git clone "$REPO_URL" "$APP_DIR"
+            fi
+
+            cd "$APP_DIR"
+            docker-compose down
+            docker-compose up -d --build
