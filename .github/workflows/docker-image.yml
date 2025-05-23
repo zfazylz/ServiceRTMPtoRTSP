@@ -7,18 +7,15 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
       - name: Install SSH key
-        uses: webfactory/ssh-agent@v0.8.0
+        uses: appleboy/ssh-action@master
         with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-      - name: Connect to VPS and deploy
-        run: "echo ${{ secrets.SERVER_IP }}"
-        # run: |
-        #   ssh ${{ secrets.SERVER_IP }} "
-        #     cd /app;
-        #     git pull origin main;
-        #     docker-compose down;
-        #     docker-compose up -d
-        #   "
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          script: |
+              cd /app;
+              git pull origin main;
+              docker-compose down;
+              docker-compose up -d;
