@@ -205,6 +205,14 @@ async def remove_stream(stream_name: str):
         raise HTTPException(status_code=404, detail=f"Stream '{stream_name}' not found")
     return {"message": f"Stream '{stream_name}' removed successfully"}
 
+# Startup event handler
+@app.on_event("startup")
+def startup_event():
+    """Load and start streams from the database when the application starts."""
+    logger.info("Application starting up, loading streams from database...")
+    count = stream_manager.load_streams_from_db(host="localhost")
+    logger.info(f"Loaded and started {count} streams from database")
+
 # Shutdown event handler
 @app.on_event("shutdown")
 def shutdown_event():

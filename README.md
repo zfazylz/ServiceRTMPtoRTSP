@@ -9,6 +9,8 @@ A web application for converting RTMP streams to RTSP streams using FastAPI and 
 - Add, view, and delete streams
 - RESTful API for programmatic access
 - Dockerized for easy deployment
+- SQLite database for stream persistence
+- Automatic stream reinitialization on application restart
 
 ## Requirements
 
@@ -105,6 +107,14 @@ Request body:
 DELETE /api/streams/{stream_name}
 ```
 
+## Stream Persistence
+
+The application uses SQLite to store stream information, ensuring that streams persist even if the application is restarted. When the application starts up, it automatically loads all saved streams from the database and restarts them.
+
+### Database Location
+
+The SQLite database is stored in the `data` directory at the project root. In Docker, this directory is mounted as a volume to ensure persistence across container restarts.
+
 ## Troubleshooting
 
 ### RTSP Streaming Issues
@@ -127,6 +137,14 @@ If you see FFmpeg errors in the logs, check:
 1. The RTMP URL is correct and accessible
 2. The RTMP stream is active and running
 3. The RTSP port is not already in use
+
+### Database Issues
+
+If you experience issues with stream persistence:
+
+1. Check that the `data` directory exists and is writable
+2. Verify that the SQLite database file (`data/streams.db`) exists
+3. If using Docker, ensure the volume is properly mounted
 
 ## Development
 

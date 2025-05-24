@@ -13,6 +13,8 @@ import io
 import threading
 from typing import Optional, List, Dict, TextIO
 
+from app.db import save_stream, delete_stream, get_all_streams as db_get_all_streams, get_stream as db_get_stream
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -287,6 +289,40 @@ class StreamManager:
         """Initialize the StreamManager."""
         self.streams: Dict[str, StreamConverter] = {}
 
+    def load_streams_from_db(self, host: str = "localhost") -> int:
+        """
+        Load streams from the database and start them.
+
+        Args:
+            host (str): The hostname to use in the RTSP URL (default: "localhost")
+
+        Returns:
+            int: The number of streams successfully loaded and started
+        """
+        streams = db_get_all_streams()
+        count = 0
+
+        for stream in streams:
+            stream_name = stream['stream_name']
+            rtmp_url = stream['rtmp_url']
+            rtsp_port = stream['rtsp_port']
+
+            # Skip if stream already exists
+            if stream_name in self.streams:
+                logger.warning(f"Stream '{stream_name}' already exists, skipping")
+                continue
+
+            # Create and start the converter
+            converter = StreamConverter(rtmp_url, rtsp_port, stream_name, host)
+            if converter.start():
+                self.streams[stream_name] = converter
+                logger.info(f"Stream '{stream_name}' loaded and started successfully")
+                count += 1
+            else:
+                logger.error(f"Failed to start stream '{stream_name}' from database")
+
+        return count
+
     def add_stream(self, rtmp_url: str, rtsp_port: int, stream_name: str, host: str = "localhost") -> bool:
         """
         Add and start a new stream converter.
@@ -310,6 +346,8 @@ class StreamManager:
         # Try to start the converter
         if converter.start():
             self.streams[stream_name] = converter
+            # Save to database
+            save_stream(stream_name, rtmp_url, rtsp_port)
             logger.info(f"Stream '{stream_name}' added successfully")
             return True
         else:
@@ -337,6 +375,8 @@ class StreamManager:
         if converter.stop():
             # Remove from the dictionary
             del self.streams[stream_name]
+            # Delete from database
+            delete_stream(stream_name)
             logger.info(f"Stream '{stream_name}' removed successfully")
             return True
         else:
