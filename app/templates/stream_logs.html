@@ -7,7 +7,16 @@
     <div class="col-12">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h1>Логи для потока: {{ stream_name }}</h1>
-            <a href="/" class="btn btn-primary">Вернуться к потокам</a>
+            <div>
+                <div class="form-check form-switch d-inline-block me-3">
+                    <input class="form-check-input" type="checkbox" id="autoRefreshToggle" checked>
+                    <label class="form-check-label" for="autoRefreshToggle">Автообновление</label>
+                </div>
+                <span id="refreshIndicator" class="d-none me-3">
+                    <small><i class="spinner-border spinner-border-sm"></i> Обновление...</small>
+                </span>
+                <a href="/" class="btn btn-primary">Вернуться к потокам</a>
+            </div>
         </div>
 
         <div class="card">
@@ -41,7 +50,30 @@
         overflow-y: auto;
         white-space: pre-wrap;
         word-wrap: break-word;
+        color: #d3d7cf; /* Default text color */
+        background-color: #2e3436; /* Dark background for better contrast */
+        font-family: monospace;
     }
+
+    /* ANSI Colors - Foreground */
+    .ansi-black { color: #2e3436; }
+    .ansi-red { color: #cc0000; }
+    .ansi-green { color: #4e9a06; }
+    .ansi-yellow { color: #c4a000; }
+    .ansi-blue { color: #3465a4; }
+    .ansi-magenta { color: #75507b; }
+    .ansi-cyan { color: #06989a; }
+    .ansi-white { color: #d3d7cf; }
+
+    /* ANSI Colors - Bright Foreground */
+    .ansi-bright-black { color: #555753; }
+    .ansi-bright-red { color: #ef2929; }
+    .ansi-bright-green { color: #8ae234; }
+    .ansi-bright-yellow { color: #fce94f; }
+    .ansi-bright-blue { color: #729fcf; }
+    .ansi-bright-magenta { color: #ad7fa8; }
+    .ansi-bright-cyan { color: #34e2e2; }
+    .ansi-bright-white { color: #eeeeec; }
 </style>
 {% endblock %}
 
@@ -52,29 +84,179 @@
         const loading = document.getElementById('loading');
         const errorMessage = document.getElementById('error-message');
         const noLogs = document.getElementById('no-logs');
+        const autoRefreshToggle = document.getElementById('autoRefreshToggle');
+        const refreshIndicator = document.getElementById('refreshIndicator');
 
-        // Fetch logs from the static file
-        fetch('{{ logs_file_url }}')
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Сетевой ответ не был успешным');
-                }
-                return response.text();
-            })
-            .then(data => {
-                loading.style.display = 'none';
-                if (data.trim()) {
-                    logsContainer.textContent = data;
-                    logsContainer.style.display = 'block';
+        let refreshTimer = null;
+        let lastLogContent = '';
+        const REFRESH_INTERVAL = 5000; // 5 seconds
+
+        // Function to convert ANSI escape sequences to HTML
+        function ansiToHtml(text) {
+            // Create a temporary div to hold the HTML
+            const div = document.createElement('div');
+
+            // Regular expression to match ANSI escape sequences
+            // This regex matches the most common color codes
+            const ansiRegex = /\x1b\[([\d;]+)m/g;
+
+            // Split the text by ANSI escape sequences
+            const parts = text.split(ansiRegex);
+
+            // Current style state
+            let currentFgColor = null;
+            let currentBgColor = null;
+            let isBold = false;
+
+            // Process each part
+            let html = '';
+            let i = 0;
+
+            while (i < parts.length) {
+                if (i % 2 === 0) {
+                    // This is text content
+                    if (parts[i]) {
+                        // Apply current styles
+                        let spanClass = '';
+                        if (currentFgColor) {
+                            spanClass += ` ${currentFgColor}`;
+                        }
+
+                        if (spanClass) {
+                            html += `<span class="${spanClass.trim()}">${parts[i]}</span>`;
+                        } else {
+                            html += parts[i];
+                        }
+                    }
                 } else {
-                    noLogs.style.display = 'block';
+                    // This is a style code
+                    const codes = parts[i].split(';').map(Number);
+
+                    for (const code of codes) {
+                        if (code === 0) {
+                            // Reset all styles
+                            currentFgColor = null;
+                            currentBgColor = null;
+                            isBold = false;
+                        } else if (code === 1) {
+                            // Bold
+                            isBold = true;
+                        } else if (code >= 30 && code <= 37) {
+                            // Foreground color
+                            const colorIndex = code - 30;
+                            const colorNames = ['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white'];
+                            currentFgColor = `ansi-${colorNames[colorIndex]}`;
+                        } else if (code >= 90 && code <= 97) {
+                            // Bright foreground color
+                            const colorIndex = code - 90;
+                            const colorNames = ['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white'];
+                            currentFgColor = `ansi-bright-${colorNames[colorIndex]}`;
+                        }
+                    }
                 }
-            })
-            .catch(error => {
-                console.error('Ошибка при получении логов:', error);
-                loading.style.display = 'none';
-                errorMessage.style.display = 'block';
-            });
+                i++;
+            }
+
+            return html;
+        }
+
+        // Function to fetch and update logs
+        function fetchLogs(isInitialLoad = false) {
+            // Show loading indicator on initial load, or refresh indicator on subsequent loads
+            if (isInitialLoad) {
+                loading.style.display = 'block';
+            } else {
+                refreshIndicator.classList.remove('d-none');
+            }
+
+            // Save scroll position
+            const isScrolledToBottom = logsContainer.scrollHeight - logsContainer.clientHeight <= logsContainer.scrollTop + 1;
+
+            fetch('{{ logs_file_url }}' + '?_=' + new Date().getTime()) // Add cache-busting parameter
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Сетевой ответ не был успешным');
+                    }
+                    return response.text();
+                })
+                .then(data => {
+                    // Hide loading indicators
+                    loading.style.display = 'none';
+                    refreshIndicator.classList.add('d-none');
+
+                    if (data.trim()) {
+                        // Only update if content has changed
+                        if (data !== lastLogContent) {
+                            lastLogContent = data;
+
+                            // Convert ANSI escape sequences to HTML
+                            logsContainer.innerHTML = ansiToHtml(data);
+                            logsContainer.style.display = 'block';
+
+                            // Restore scroll position
+                            if (isScrolledToBottom) {
+                                logsContainer.scrollTop = logsContainer.scrollHeight;
+                            }
+                        }
+                    } else {
+                        noLogs.style.display = 'block';
+                    }
+                })
+                .catch(error => {
+                    console.error('Ошибка при получении логов:', error);
+                    loading.style.display = 'none';
+                    refreshIndicator.classList.add('d-none');
+
+                    if (isInitialLoad) {
+                        errorMessage.style.display = 'block';
+                    }
+                });
+        }
+
+        // Function to start auto-refresh
+        function startAutoRefresh() {
+            if (refreshTimer === null) {
+                refreshTimer = setInterval(() => {
+                    if (document.visibilityState === 'visible') {
+                        fetchLogs(false);
+                    }
+                }, REFRESH_INTERVAL);
+            }
+        }
+
+        // Function to stop auto-refresh
+        function stopAutoRefresh() {
+            if (refreshTimer !== null) {
+                clearInterval(refreshTimer);
+                refreshTimer = null;
+            }
+        }
+
+        // Toggle auto-refresh when checkbox is clicked
+        autoRefreshToggle.addEventListener('change', function() {
+            if (this.checked) {
+                startAutoRefresh();
+            } else {
+                stopAutoRefresh();
+            }
+        });
+
+        // Initial fetch
+        fetchLogs(true);
+
+        // Start auto-refresh if toggle is checked
+        if (autoRefreshToggle.checked) {
+            startAutoRefresh();
+        }
+
+        // Stop auto-refresh when page is hidden
+        document.addEventListener('visibilitychange', function() {
+            if (document.visibilityState === 'hidden' && refreshTimer !== null) {
+                stopAutoRefresh();
+            } else if (document.visibilityState === 'visible' && autoRefreshToggle.checked) {
+                startAutoRefresh();
+            }
+        });
     });
 </script>
 {% endblock %}

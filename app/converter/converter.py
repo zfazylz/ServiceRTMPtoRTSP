@@ -186,18 +186,11 @@ class StreamConverter:
                     "-f",
                     "rtsp",
                     "-rtsp_transport", "tcp",
-                    f"rtsp://rtsp-server:{self.rtsp_port}/{self.stream_name}"
+                    f"rtsp://rtsp-server:{self.rtsp_port}/{self.stream_name}",
+                    # "-stats",
+                    # "-stats_period 5",
+                    # "-loglevel info",
                 ]
-
-                # cmd = [
-                #     "ffmpeg",
-                #     "-i", self.rtmp_url,
-                #     "-c:v", "copy",  # Copy video codec
-                #     "-c:a", "copy",  # Copy audio codec
-                #     "-f", "rtsp",
-                #     "-rtsp_transport", "tcp",
-                #     f"rtsp://0.0.0.0:{self.rtsp_port}/{self.stream_name}"
-                # ]
 
                 # Start the FFmpeg process with pipes for stdout and stderr
                 with open(self.log_file_path, "a") as log_file:
@@ -205,7 +198,8 @@ class StreamConverter:
                         cmd,
                         stdout=log_file,
                         stderr=log_file,
-                        universal_newlines=True
+                        universal_newlines=True,
+                        env={"AV_LOG_FORCE_COLOR": "1"},
                     )
 
                 # Start a thread to read from the pipes and log the output
