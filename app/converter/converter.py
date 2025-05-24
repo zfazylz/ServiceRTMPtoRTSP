@@ -9,7 +9,9 @@ import time
 import logging
 import os
 import signal
-from typing import Optional, List, Dict
+import io
+import threading
+from typing import Optional, List, Dict, TextIO
 
 # Configure logging
 logging.basicConfig(
@@ -17,6 +19,60 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+class LoggerWriter(io.TextIOBase):
+    """
+    A file-like object that writes to a logger.
+
+    This class is used to redirect subprocess output directly to a logger.
+    """
+
+    def __init__(self, logger, prefix=""):
+        """
+        Initialize the LoggerWriter.
+
+        Args:
+            logger: The logger to write to
+            prefix (str): A prefix to add to each log message
+        """
+        self.logger = logger
+        self.prefix = prefix
+        self.buffer = ""
+
+    def write(self, data):
+        """
+        Write data to the logger.
+
+        Args:
+            data: The data to write
+
+        Returns:
+            int: The number of characters written
+        """
+        if data:
+            # Buffer the data until we get a newline
+            self.buffer += data
+            if '\n' in self.buffer:
+                lines = self.buffer.splitlines()
+                # Keep the last line if it doesn't end with a newline
+                if self.buffer.endswith('\n'):
+                    self.buffer = ""
+                    for line in lines:
+                        if line:  # Skip empty lines
+                            self.logger.info(f"{self.prefix}{line}")
+                else:
+                    self.buffer = lines[-1]
+                    for line in lines[:-1]:
+                        if line:  # Skip empty lines
+                            self.logger.info(f"{self.prefix}{line}")
+            return len(data)
+        return 0
+
+    def flush(self):
+        """Flush the buffer."""
+        if self.buffer:
+            self.logger.info(f"{self.prefix}{self.buffer}")
+            self.buffer = ""
 
 class StreamConverter:
     """
@@ -28,6 +84,7 @@ class StreamConverter:
         stream_name (str): A unique name for the stream
         rtsp_url (str): The URL of the resulting RTSP stream
         process (subprocess.Popen): The FFmpeg process
+        log_buffer (io.StringIO): Buffer to store logs for this stream
     """
 
     def __init__(self, rtmp_url: str, rtsp_port: int, stream_name: str, host: str = "localhost"):
@@ -46,6 +103,57 @@ class StreamConverter:
         self.host = host
         self.rtsp_url = f"rtsp://{host}:{rtsp_port}/{stream_name}"
         self.process: Optional[subprocess.Popen] = None
+        self.log_buffer = io.StringIO()
+        self.log_thread = None
+        self.stop_log_thread = False
+
+        # Create logs directory if it doesn't exist
+        logs_dir = os.path.join(os.getcwd(), 'app', 'static', 'logs')
+        if not os.path.exists(logs_dir):
+            os.makedirs(logs_dir)
+
+        # Set up log file path
+        self.log_file_path = os.path.join(logs_dir, f"{stream_name}.log")
+
+        # Create a stream-specific logger
+        self.logger = logging.getLogger(f"{__name__}.{stream_name}")
+
+        # Add a handler to write to the buffer
+        buffer_handler = logging.StreamHandler(self.log_buffer)
+        buffer_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+        self.logger.addHandler(buffer_handler)
+
+        # Add a handler to write to a file in append mode
+        file_handler = logging.FileHandler(self.log_file_path, mode='a')
+        file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+        self.logger.addHandler(file_handler)
+
+
+    def _log_ffmpeg_output(self):
+        """
+        Read and log the output from the ffmpeg process.
+        This method is intended to be run in a separate thread.
+        """
+        while not self.stop_log_thread and self.process and self.process.poll() is None:
+            try:
+                # Read from stdout
+                if self.process.stdout:
+                    line = self.process.stdout.readline()
+                    if line:
+                        self.logger.info(f"FFmpeg stdout: {line.strip()}")
+
+                # Read from stderr
+                if self.process.stderr:
+                    line = self.process.stderr.readline()
+                    if line:
+                        self.logger.info(f"FFmpeg stderr: {line.strip()}")
+
+                # Small sleep to avoid high CPU usage
+                time.sleep(0.1)
+            except Exception as e:
+                self.logger.error(f"Error reading ffmpeg output: {str(e)}")
+                break
+
 
     def start(self, max_retries: int = 3, retry_delay: int = 2) -> bool:
         """
@@ -59,12 +167,12 @@ class StreamConverter:
             bool: True if the conversion started successfully, False otherwise
         """
         if self.process and self.process.poll() is None:
-            logger.warning(f"Converter for {self.stream_name} is already running")
+            self.logger.warning(f"Converter for {self.stream_name} is already running")
             return True
 
         for attempt in range(max_retries):
             try:
-                logger.info(f"Starting converter for {self.rtmp_url} (attempt {attempt+1}/{max_retries})")
+                self.logger.info(f"Starting converter for {self.rtmp_url} (attempt {attempt+1}/{max_retries})")
 
                 # FFmpeg command to convert RTMP to RTSP
                 cmd = [
@@ -89,36 +197,43 @@ class StreamConverter:
                 #     f"rtsp://0.0.0.0:{self.rtsp_port}/{self.stream_name}"
                 # ]
 
-                # Start the FFmpeg process
-                self.process = subprocess.Popen(
-                    cmd,
-                    stdout=None,
-                    stderr=None,
-                    universal_newlines=True
-                )
+                # Start the FFmpeg process with pipes for stdout and stderr
+                with open(self.log_file_path, "a") as log_file:
+                    self.process = subprocess.Popen(
+                        cmd,
+                        stdout=log_file,
+                        stderr=log_file,
+                        universal_newlines=True
+                    )
+
+                # Start a thread to read from the pipes and log the output
+                self.stop_log_thread = False
+                self.log_thread = threading.Thread(target=self._log_ffmpeg_output)
+                self.log_thread.daemon = True
+                self.log_thread.start()
 
                 # Wait a bit to see if the process starts successfully
                 time.sleep(2)
 
                 # Check if the process is still running
                 if self.process.poll() is None:
-                    logger.info(f"Converter started successfully for {self.stream_name}")
+                    self.logger.info(f"Converter started successfully for {self.stream_name}")
+
                     return True
                 else:
-                    stderr = self.process.stderr.read() if self.process.stderr else "No error output"
-                    logger.error(f"Converter failed to start: {stderr}")
+                    self.logger.error(f"Converter failed to start")
 
                     # Wait before retrying
                     if attempt < max_retries - 1:
-                        logger.info(f"Retrying in {retry_delay} seconds...")
+                        self.logger.info(f"Retrying in {retry_delay} seconds...")
                         time.sleep(retry_delay)
             except Exception as e:
-                logger.error(f"Error starting converter: {str(e)}")
+                self.logger.error(f"Error starting converter: {str(e)}")
                 if attempt < max_retries - 1:
-                    logger.info(f"Retrying in {retry_delay} seconds...")
+                    self.logger.info(f"Retrying in {retry_delay} seconds...")
                     time.sleep(retry_delay)
 
-        logger.error(f"Failed to start converter after {max_retries} attempts")
+        self.logger.error(f"Failed to start converter after {max_retries} attempts")
         return False
 
     def stop(self) -> bool:
@@ -129,11 +244,17 @@ class StreamConverter:
             bool: True if the conversion was stopped successfully, False otherwise
         """
         if not self.process:
-            logger.warning(f"No converter process to stop for {self.stream_name}")
+            self.logger.warning(f"No converter process to stop for {self.stream_name}")
             return True
 
         try:
-            logger.info(f"Stopping converter for {self.stream_name}")
+            self.logger.info(f"Stopping converter for {self.stream_name}")
+
+            # Stop the log thread if it's running
+            if self.log_thread and self.log_thread.is_alive():
+                self.stop_log_thread = True
+                self.log_thread.join(timeout=2)  # Wait for the thread to terminate
+                self.log_thread = None
 
             # Try to terminate gracefully first
             self.process.terminate()
@@ -143,15 +264,15 @@ class StreamConverter:
                 self.process.wait(timeout=5)
             except subprocess.TimeoutExpired:
                 # If it doesn't terminate in time, kill it
-                logger.warning(f"Converter for {self.stream_name} did not terminate gracefully, killing it")
+                self.logger.warning(f"Converter for {self.stream_name} did not terminate gracefully, killing it")
                 self.process.kill()
                 self.process.wait(timeout=2)
 
-            logger.info(f"Converter for {self.stream_name} stopped successfully")
+            self.logger.info(f"Converter for {self.stream_name} stopped successfully")
             self.process = None
             return True
         except Exception as e:
-            logger.error(f"Error stopping converter: {str(e)}")
+            self.logger.error(f"Error stopping converter: {str(e)}")
             return False
 
 class StreamManager:
@@ -237,7 +358,9 @@ class StreamManager:
                 "name": name,
                 "rtmp_url": converter.rtmp_url,
                 "rtsp_url": f"rtsp://{host}:{converter.rtsp_port}/{converter.stream_name}",
-                "rtsp_port": converter.rtsp_port
+                "rtsp_port": converter.rtsp_port,
+                "logs_url": f"/logs/{name}",
+                "logs_file_url": f"/static/logs/{name}.log"
             }
             for name, converter in self.streams.items()
         ]
@@ -261,7 +384,9 @@ class StreamManager:
             "name": stream_name,
             "rtmp_url": converter.rtmp_url,
             "rtsp_url": f"rtsp://{host}:{converter.rtsp_port}/{converter.stream_name}",
-            "rtsp_port": converter.rtsp_port
+            "rtsp_port": converter.rtsp_port,
+            "logs_url": f"/logs/{stream_name}",
+            "logs_file_url": f"/static/logs/{stream_name}.log"
         }
 
     def stop_all_streams(self) -> bool:
@@ -279,3 +404,36 @@ class StreamManager:
 
         self.streams.clear()
         return success
+
+    def get_stream_logs(self, stream_name: str) -> Optional[str]:
+        """
+        Get logs for a specific stream.
+
+        Args:
+            stream_name (str): The name of the stream
+
+        Returns:
+            Optional[str]: The logs for the stream, or None if the stream is not found
+        """
+        if stream_name not in self.streams:
+            return None
+
+        converter = self.streams[stream_name]
+
+        # Get logs from the buffer
+        buffer_logs = converter.log_buffer.getvalue()
+
+        # Get logs from the file if it exists
+        file_logs = ""
+        if hasattr(converter, 'log_file_path') and os.path.exists(converter.log_file_path):
+            try:
+                with open(converter.log_file_path, 'r') as f:
+                    file_logs = f.read()
+            except Exception as e:
+                logger.error(f"Error reading log file for stream '{stream_name}': {str(e)}")
+
+        # If both sources have logs, return the file logs (which should be more complete)
+        # Otherwise, return whichever has logs, or an empty string if neither has logs
+        if file_logs:
+            return file_logs
+        return buffer_logs

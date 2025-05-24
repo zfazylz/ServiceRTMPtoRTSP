@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}RTMP to RTSP Converter - Stream Logs{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>Logs for Stream: {{ stream_name }}</h1>
+            <a href="/" class="btn btn-primary">Back to Streams</a>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <div id="loading" class="text-center">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p>Loading logs...</p>
+                </div>
+                <pre id="logs-container" class="logs-container" style="display: none;"></pre>
+                <div id="error-message" class="alert alert-danger" style="display: none;">
+                    Error loading logs. Please try again later.
+                </div>
+                <div id="no-logs" class="alert alert-info" style="display: none;">
+                    No logs available for this stream.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .logs-container {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 5px;
+        max-height: 600px;
+        overflow-y: auto;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+    }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const logsContainer = document.getElementById('logs-container');
+        const loading = document.getElementById('loading');
+        const errorMessage = document.getElementById('error-message');
+        const noLogs = document.getElementById('no-logs');
+
+        // Fetch logs from the static file
+        fetch('{{ logs_file_url }}')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.text();
+            })
+            .then(data => {
+                loading.style.display = 'none';
+                if (data.trim()) {
+                    logsContainer.textContent = data;
+                    logsContainer.style.display = 'block';
+                } else {
+                    noLogs.style.display = 'block';
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching logs:', error);
+                loading.style.display = 'none';
+                errorMessage.style.display = 'block';
+            });
+    });
+</script>
+{% endblock %}

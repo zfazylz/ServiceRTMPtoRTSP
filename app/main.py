@@ -6,6 +6,7 @@ A FastAPI web application for converting RTMP streams to RTSP streams.
 
 import os
 import logging
+import io
 from typing import Optional, List, Dict
 from fastapi import FastAPI, Request, Form, HTTPException, Depends
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -14,6 +15,16 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, validator
 
 from app.converter import StreamManager
+
+# Create necessary directories
+static_dir = os.path.join(os.getcwd(), 'app/static')
+logs_dir = os.path.join(static_dir, 'logs')
+
+if not os.path.exists(static_dir):
+    os.makedirs(static_dir)
+
+if not os.path.exists(logs_dir):
+    os.makedirs(logs_dir)
 
 # Configure logging
 logging.basicConfig(
@@ -29,8 +40,8 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# # Mount static files
-# app.mount("/static", StaticFiles(directory="app/static"), name="static")
+# Mount static files
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 # Set up templates
 templates = Jinja2Templates(directory="app/templates")
@@ -67,6 +78,8 @@ class Stream(BaseModel):
     rtmp_url: str
     rtsp_url: str
     rtsp_port: int
+    logs_url: str
+    logs_file_url: str
 
 # Define API endpoints
 @app.get("/", response_class=HTMLResponse)
@@ -154,6 +167,17 @@ async def get_stream(stream_name: str, request: Request):
     if not stream:
         raise HTTPException(status_code=404, detail=f"Stream '{stream_name}' not found")
     return stream
+
+@app.get("/logs/{stream_name}", response_class=HTMLResponse)
+async def view_stream_logs(stream_name: str, request: Request):
+    """View logs for a specific stream."""
+    stream = stream_manager.get_stream(stream_name, host=request.url.hostname)
+    if stream is None:
+        raise HTTPException(status_code=404, detail=f"Stream '{stream_name}' not found")
+    return templates.TemplateResponse(
+        "stream_logs.html",
+        {"request": request, "stream_name": stream_name, "logs_file_url": stream["logs_file_url"]}
+    )
 
 @app.post("/api/streams", response_model=Stream)
 async def create_stream(stream: StreamCreate, request: Request):
