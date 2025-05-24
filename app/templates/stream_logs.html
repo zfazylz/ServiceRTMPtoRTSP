@@ -6,33 +6,74 @@
 <div class="row">
     <div class="col-12">
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1>Логи для потока: {{ stream_name }}</h1>
             <div>
+                <h1 class="fw-bold mb-2">
+                    <i class="fas fa-list-ul text-primary me-2"></i>Логи потока
+                </h1>
+                <p class="text-muted">
+                    <i class="fas fa-video me-1"></i> {{ stream_name }}
+                </p>
+            </div>
+            <div class="d-flex align-items-center">
                 <div class="form-check form-switch d-inline-block me-3">
                     <input class="form-check-input" type="checkbox" id="autoRefreshToggle" checked>
-                    <label class="form-check-label" for="autoRefreshToggle">Автообновление</label>
+                    <label class="form-check-label" for="autoRefreshToggle">
+                        <i class="fas fa-sync-alt me-1"></i>Автообновление
+                    </label>
                 </div>
                 <span id="refreshIndicator" class="d-none me-3">
-                    <small><i class="spinner-border spinner-border-sm"></i> Обновление...</small>
+                    <span class="badge bg-primary">
+                        <i class="spinner-border spinner-border-sm me-1"></i> Обновление...
+                    </span>
                 </span>
-                <a href="/" class="btn btn-primary">Вернуться к потокам</a>
+                <a href="/" class="btn btn-outline-primary">
+                    <i class="fas fa-arrow-left me-1"></i>Вернуться к потокам
+                </a>
             </div>
         </div>
 
-        <div class="card">
-            <div class="card-body">
-                <div id="loading" class="text-center">
-                    <div class="spinner-border" role="status">
+        <div class="card shadow-sm">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <div>
+                    <i class="fas fa-terminal me-2"></i>
+                    <strong>Вывод логов</strong>
+                </div>
+                <div class="log-controls">
+                    <button id="copyLogsBtn" class="btn btn-sm btn-outline-secondary me-2" data-bs-toggle="tooltip" title="Копировать логи">
+                        <i class="fas fa-copy"></i>
+                    </button>
+                    <button id="clearLogsBtn" class="btn btn-sm btn-outline-secondary" data-bs-toggle="tooltip" title="Очистить вид">
+                        <i class="fas fa-eraser"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div id="loading" class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
                         <span class="visually-hidden">Загрузка...</span>
                     </div>
-                    <p>Загрузка логов...</p>
+                    <p class="mt-3">Загрузка логов...</p>
                 </div>
-                <pre id="logs-container" class="logs-container" style="display: none;"></pre>
-                <div id="error-message" class="alert alert-danger" style="display: none;">
+                <pre id="logs-container" class="logs-container m-0 rounded-0" style="display: none;"></pre>
+                <div id="error-message" class="alert alert-danger m-3" style="display: none;">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
                     Ошибка загрузки логов. Пожалуйста, попробуйте позже.
                 </div>
-                <div id="no-logs" class="alert alert-info" style="display: none;">
+                <div id="no-logs" class="alert alert-info m-3" style="display: none;">
+                    <i class="fas fa-info-circle me-2"></i>
                     Для этого потока нет доступных логов.
+                </div>
+            </div>
+            <div class="card-footer bg-light">
+                <div class="d-flex justify-content-between align-items-center">
+                    <small class="text-muted">
+                        <i class="fas fa-clock me-1"></i>Обновлено: <span id="lastUpdated">-</span>
+                    </small>
+                    <div>
+                        <span class="badge bg-success stream-status">
+                            <i class="fas fa-circle me-1"></i>Поток активен
+                        </span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -43,61 +84,184 @@
 {% block extra_css %}
 <style>
     .logs-container {
-        background-color: #f8f9fa;
-        padding: 15px;
-        border-radius: 5px;
-        max-height: 600px;
+        padding: 1.25rem;
+        max-height: 650px;
         overflow-y: auto;
         white-space: pre-wrap;
         word-wrap: break-word;
-        color: #d3d7cf; /* Default text color */
-        background-color: #2e3436; /* Dark background for better contrast */
-        font-family: monospace;
+        color: #e2e2e2; /* Default text color */
+        background-color: #1e1e1e; /* Dark background for better contrast */
+        font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+        font-size: 0.9rem;
+        line-height: 1.5;
+        border: none;
+        transition: all 0.3s ease;
+    }
+
+    .logs-container::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+    }
+
+    .logs-container::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.1);
+    }
+
+    .logs-container::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 4px;
+    }
+
+    .logs-container::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.3);
+    }
+
+    .log-controls .btn {
+        transition: all 0.2s ease;
+    }
+
+    .log-controls .btn:hover {
+        transform: translateY(-2px);
+    }
+
+    .stream-status {
+        font-size: 0.8rem;
+        padding: 0.35rem 0.65rem;
     }
 
     /* ANSI Colors - Foreground */
-    .ansi-black { color: #2e3436; }
-    .ansi-red { color: #cc0000; }
-    .ansi-green { color: #4e9a06; }
-    .ansi-yellow { color: #c4a000; }
-    .ansi-blue { color: #3465a4; }
-    .ansi-magenta { color: #75507b; }
-    .ansi-cyan { color: #06989a; }
-    .ansi-white { color: #d3d7cf; }
+    .ansi-black { color: #3c3c3c; }
+    .ansi-red { color: #ff5e5e; }
+    .ansi-green { color: #6ae05c; }
+    .ansi-yellow { color: #ffde74; }
+    .ansi-blue { color: #5c9aff; }
+    .ansi-magenta { color: #ff6ac1; }
+    .ansi-cyan { color: #5ceaff; }
+    .ansi-white { color: #e2e2e2; }
 
     /* ANSI Colors - Bright Foreground */
-    .ansi-bright-black { color: #555753; }
-    .ansi-bright-red { color: #ef2929; }
-    .ansi-bright-green { color: #8ae234; }
-    .ansi-bright-yellow { color: #fce94f; }
-    .ansi-bright-blue { color: #729fcf; }
-    .ansi-bright-magenta { color: #ad7fa8; }
-    .ansi-bright-cyan { color: #34e2e2; }
-    .ansi-bright-white { color: #eeeeec; }
+    .ansi-bright-black { color: #7c7c7c; }
+    .ansi-bright-red { color: #ff8e8e; }
+    .ansi-bright-green { color: #9aff8c; }
+    .ansi-bright-yellow { color: #ffff94; }
+    .ansi-bright-blue { color: #8cbaff; }
+    .ansi-bright-magenta { color: #ff9ae1; }
+    .ansi-bright-cyan { color: #8cffff; }
+    .ansi-bright-white { color: #ffffff; }
+
+    /* Animations */
+    @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.6; }
+        100% { opacity: 1; }
+    }
+
+    .pulse {
+        animation: pulse 1.5s infinite;
+    }
+
+    /* Toast notification */
+    .toast-container {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 1050;
+    }
+
+    .toast {
+        background-color: rgba(33, 37, 41, 0.85);
+        backdrop-filter: blur(10px);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
 </style>
 {% endblock %}
 
 {% block extra_js %}
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // DOM Elements
         const logsContainer = document.getElementById('logs-container');
         const loading = document.getElementById('loading');
         const errorMessage = document.getElementById('error-message');
         const noLogs = document.getElementById('no-logs');
         const autoRefreshToggle = document.getElementById('autoRefreshToggle');
         const refreshIndicator = document.getElementById('refreshIndicator');
+        const copyLogsBtn = document.getElementById('copyLogsBtn');
+        const clearLogsBtn = document.getElementById('clearLogsBtn');
+        const lastUpdatedEl = document.getElementById('lastUpdated');
 
+        // State variables
         let refreshTimer = null;
         let lastLogContent = '';
+        let filteredView = false;
         const REFRESH_INTERVAL = 5000; // 5 seconds
+
+        // Create toast container
+        const toastContainer = document.createElement('div');
+        toastContainer.className = 'toast-container';
+        document.body.appendChild(toastContainer);
+
+        // Function to show toast notification
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.className = 'toast show';
+            toast.setAttribute('role', 'alert');
+            toast.setAttribute('aria-live', 'assertive');
+            toast.setAttribute('aria-atomic', 'true');
+
+            const iconClass = type === 'success' ? 'fas fa-check-circle text-success' : 
+                             type === 'error' ? 'fas fa-exclamation-circle text-danger' : 
+                             'fas fa-info-circle text-info';
+
+            toast.innerHTML = `
+                <div class="toast-header">
+                    <i class="${iconClass} me-2"></i>
+                    <strong class="me-auto">Уведомление</strong>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+                <div class="toast-body">
+                    ${message}
+                </div>
+            `;
+
+            toastContainer.appendChild(toast);
+
+            // Auto-close after 3 seconds
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => {
+                    toastContainer.removeChild(toast);
+                }, 300);
+            }, 3000);
+
+            // Close button functionality
+            const closeBtn = toast.querySelector('.btn-close');
+            closeBtn.addEventListener('click', () => {
+                toast.classList.remove('show');
+                setTimeout(() => {
+                    toastContainer.removeChild(toast);
+                }, 300);
+            });
+        }
+
+        // Function to update the last updated timestamp
+        function updateLastUpdated() {
+            const now = new Date();
+            const options = { 
+                hour: '2-digit', 
+                minute: '2-digit', 
+                second: '2-digit',
+                hour12: false
+            };
+            lastUpdatedEl.textContent = now.toLocaleTimeString([], options);
+        }
 
         // Function to convert ANSI escape sequences to HTML
         function ansiToHtml(text) {
-            // Create a temporary div to hold the HTML
-            const div = document.createElement('div');
-
             // Regular expression to match ANSI escape sequences
-            // This regex matches the most common color codes
             const ansiRegex = /\x1b\[([\d;]+)m/g;
 
             // Split the text by ANSI escape sequences
@@ -193,6 +357,9 @@
                             logsContainer.innerHTML = ansiToHtml(data);
                             logsContainer.style.display = 'block';
 
+                            // Update last updated timestamp
+                            updateLastUpdated();
+
                             // Restore scroll position
                             if (isScrolledToBottom) {
                                 logsContainer.scrollTop = logsContainer.scrollHeight;
@@ -232,14 +399,53 @@
             }
         }
 
+        // Function to copy logs to clipboard
+        function copyLogsToClipboard() {
+            // Get text content without HTML tags
+            const plainText = logsContainer.textContent || logsContainer.innerText;
+
+            // Use the Clipboard API
+            navigator.clipboard.writeText(plainText)
+                .then(() => {
+                    showToast('Логи скопированы в буфер обмена', 'success');
+                })
+                .catch(err => {
+                    console.error('Ошибка при копировании: ', err);
+                    showToast('Не удалось скопировать логи', 'error');
+                });
+        }
+
+        // Function to clear logs view (doesn't delete actual logs)
+        function clearLogsView() {
+            if (filteredView) {
+                // Restore original logs
+                logsContainer.innerHTML = ansiToHtml(lastLogContent);
+                filteredView = false;
+                showToast('Вид логов восстановлен', 'info');
+            } else {
+                // Clear the view
+                logsContainer.innerHTML = '<span class="text-muted">Вид логов очищен. Нажмите кнопку еще раз, чтобы восстановить.</span>';
+                filteredView = true;
+                showToast('Вид логов очищен', 'info');
+            }
+        }
+
         // Toggle auto-refresh when checkbox is clicked
         autoRefreshToggle.addEventListener('change', function() {
             if (this.checked) {
                 startAutoRefresh();
+                showToast('Автообновление включено', 'success');
             } else {
                 stopAutoRefresh();
+                showToast('Автообновление отключено', 'info');
             }
         });
+
+        // Copy logs button click handler
+        copyLogsBtn.addEventListener('click', copyLogsToClipboard);
+
+        // Clear logs button click handler
+        clearLogsBtn.addEventListener('click', clearLogsView);
 
         // Initial fetch
         fetchLogs(true);

@@ -5,43 +5,71 @@
 {% block content %}
 <div class="row">
     <div class="col-12">
-        <h1 class="mb-4">Управление потоками</h1>
-
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <p class="mb-0">Управляйте конвертацией потоков из RTMP в RTSP</p>
-            <a href="/add" class="btn btn-primary">Добавить новый поток</a>
+            <div>
+                <h1 class="fw-bold mb-2">Управление потоками</h1>
+                <p class="text-muted">Управляйте конвертацией потоков из RTMP в RTSP</p>
+            </div>
+            <a href="/add" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>Добавить новый поток
+            </a>
         </div>
 
         {% if streams %}
             <div class="row">
                 {% for stream in streams %}
-                    <div class="col-md-6">
+                    <div class="col-lg-6">
                         <div class="card stream-card">
                             <div class="card-header d-flex justify-content-between align-items-center">
-                                <h5 class="mb-0">{{ stream.name }}</h5>
-                                <form action="/delete/{{ stream.name }}" method="post" onsubmit="return confirm('Вы уверены, что хотите удалить этот поток?');">
-                                    <button type="submit" class="btn btn-sm btn-danger">Удалить</button>
-                                </form>
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-video text-primary me-2"></i>
+                                    <h5 class="mb-0 fw-bold">{{ stream.name }}</h5>
+                                </div>
+                                <div class="d-flex">
+                                    <a href="{{ stream.logs_url }}" class="btn btn-sm btn-outline-primary me-2" data-bs-toggle="tooltip" title="Просмотр логов">
+                                        <i class="fas fa-list-ul"></i>
+                                    </a>
+                                    <form action="/delete/{{ stream.name }}" method="post" onsubmit="return confirm('Вы уверены, что хотите удалить этот поток?');">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" data-bs-toggle="tooltip" title="Удалить поток">
+                                            <i class="fas fa-trash-alt"></i>
+                                        </button>
+                                    </form>
+                                </div>
                             </div>
                             <div class="card-body">
                                 <div class="mb-3">
-                                    <strong>URL RTMP:</strong>
+                                    <div class="d-flex align-items-center mb-2">
+                                        <i class="fas fa-arrow-right text-success me-2"></i>
+                                        <strong>URL RTMP:</strong>
+                                    </div>
                                     <div class="stream-url">{{ stream.rtmp_url }}</div>
                                 </div>
                                 <div class="mb-3">
-                                    <strong>URL RTSP:</strong>
+                                    <div class="d-flex align-items-center mb-2">
+                                        <i class="fas fa-arrow-left text-primary me-2"></i>
+                                        <strong>URL RTSP:</strong>
+                                    </div>
                                     <div class="stream-url">{{ stream.rtsp_url }}</div>
                                 </div>
-                                <div>
-                                    <strong>Порт RTSP:</strong> {{ stream.rtsp_port }}
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-network-wired text-secondary me-2"></i>
+                                    <strong>Порт RTSP:</strong>
+                                    <span class="badge bg-light text-dark ms-2">{{ stream.rtsp_port }}</span>
                                 </div>
                             </div>
-                            <div class="card-footer">
+                            <div class="card-footer bg-light">
                                 <div class="d-flex justify-content-between align-items-center">
-                                    <small class="text-muted">
-                                        Вы можете получить доступ к этому RTSP-потоку с помощью VLC или других совместимых плееров.
-                                    </small>
-                                    <a href="{{ stream.logs_url }}" class="btn btn-sm btn-info">Просмотр логов</a>
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-info-circle text-info me-2"></i>
+                                        <small class="text-muted">
+                                            Доступ через VLC или другие RTSP-плееры
+                                        </small>
+                                    </div>
+                                    <div class="stream-status">
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-circle me-1"></i>Активен
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -49,24 +77,17 @@
                 {% endfor %}
             </div>
         {% else %}
-            <div class="alert alert-info">
-                <p class="mb-0">Нет доступных потоков. <a href="/add">Добавьте новый поток</a>, чтобы начать работу.</p>
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-stream text-muted mb-3" style="font-size: 3rem;"></i>
+                    <h4 class="mb-3">Нет доступных потоков</h4>
+                    <p class="text-muted mb-4">Добавьте новый поток, чтобы начать конвертацию из RTMP в RTSP</p>
+                    <a href="/add" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>Добавить новый поток
+                    </a>
+                </div>
             </div>
         {% endif %}
     </div>
 </div>
-{% endblock %}
-
-{% block extra_js %}
-<script>
-    // Highlight active nav item
-    document.addEventListener('DOMContentLoaded', function() {
-        const navLinks = document.querySelectorAll('.nav-link');
-        navLinks.forEach(link => {
-            if (link.getAttribute('href') === '/') {
-                link.classList.add('active');
-            }
-        });
-    });
-</script>
 {% endblock %}
