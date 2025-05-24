@@ -87,6 +87,8 @@ class StreamConverter:
         rtsp_url (str): The URL of the resulting RTSP stream
         process (subprocess.Popen): The FFmpeg process
         log_buffer (io.StringIO): Buffer to store logs for this stream
+        last_error (str): The last error message from FFmpeg, if any
+        last_output_time (float): The timestamp of the last output from FFmpeg
     """
 
     def __init__(self, rtmp_url: str, rtsp_port: int, stream_name: str, host: str = "localhost"):
@@ -108,6 +110,8 @@ class StreamConverter:
         self.log_buffer = io.StringIO()
         self.log_thread = None
         self.stop_log_thread = False
+        self.last_error = ""
+        self.last_output_time = 0.0
 
         # Create logs directory if it doesn't exist
         logs_dir = os.path.join(os.getcwd(), 'app', 'static', 'logs')
@@ -143,17 +147,26 @@ class StreamConverter:
                     line = self.process.stdout.readline()
                     if line:
                         self.logger.info(f"FFmpeg stdout: {line.strip()}")
+                        # Update last output time
+                        self.last_output_time = time.time()
 
                 # Read from stderr
                 if self.process.stderr:
                     line = self.process.stderr.readline()
                     if line:
                         self.logger.info(f"FFmpeg stderr: {line.strip()}")
+                        # Check for error messages
+                        error_line = line.strip().lower()
+                        if "error" in error_line or "fatal" in error_line:
+                            self.last_error = line.strip()
+                        # Update last output time even for errors
+                        self.last_output_time = time.time()
 
                 # Small sleep to avoid high CPU usage
                 time.sleep(0.1)
             except Exception as e:
                 self.logger.error(f"Error reading ffmpeg output: {str(e)}")
+                self.last_error = str(e)
                 break
 
 
@@ -231,6 +244,42 @@ class StreamConverter:
 
         self.logger.error(f"Failed to start converter after {max_retries} attempts")
         return False
+
+    def get_health_status(self) -> dict:
+        """
+        Check the health status of the stream.
+
+        Returns:
+            dict: A dictionary containing status information:
+                - status: True if the stream is healthy, False if not
+                - reason: A string explaining the status (only for False status)
+        """
+        # Check if process is running
+        if not self.process or self.process.poll() is not None:
+            return {
+                "status": False,
+                "reason": "FFmpeg process is not running"
+            }
+
+        # Check for recent errors
+        if self.last_error:
+            return {
+                "status": False,
+                "reason": f"FFmpeg error: {self.last_error}"
+            }
+
+        # Check for recent output (consider stream down if no output for more than 30 seconds)
+        if self.last_output_time > 0 and time.time() - self.last_output_time > 30:
+            return {
+                "status": False,
+                "reason": "No output from FFmpeg for more than 30 seconds"
+            }
+
+        # If we got here, the stream is healthy
+        return {
+            "status": True,
+            "reason": "Stream is running normally"
+        }
 
     def stop(self) -> bool:
         """
@@ -394,7 +443,9 @@ class StreamManager:
                 "rtsp_url": f"rtsp://{host}:{converter.rtsp_port}/{converter.stream_name}",
                 "rtsp_port": converter.rtsp_port,
                 "logs_url": f"/logs/{name}",
-                "logs_file_url": f"/static/logs/{name}.log"
+                "logs_file_url": f"/static/logs/{name}.log",
+                "status": converter.get_health_status()["status"],
+                "status_reason": converter.get_health_status()["reason"]
             }
             for name, converter in self.streams.items()
         ]
@@ -414,13 +465,16 @@ class StreamManager:
             return None
 
         converter = self.streams[stream_name]
+        health_status = converter.get_health_status()
         return {
             "name": stream_name,
             "rtmp_url": converter.rtmp_url,
             "rtsp_url": f"rtsp://{host}:{converter.rtsp_port}/{converter.stream_name}",
             "rtsp_port": converter.rtsp_port,
             "logs_url": f"/logs/{stream_name}",
-            "logs_file_url": f"/static/logs/{stream_name}.log"
+            "logs_file_url": f"/static/logs/{stream_name}.log",
+            "status": health_status["status"],
+            "status_reason": health_status["reason"]
         }
 
     def stop_all_streams(self) -> bool:

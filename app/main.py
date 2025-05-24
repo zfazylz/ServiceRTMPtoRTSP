@@ -80,6 +80,8 @@ class Stream(BaseModel):
     rtsp_port: int
     logs_url: str
     logs_file_url: str
+    status: bool
+    status_reason: str
 
 # Define API endpoints
 @app.get("/", response_class=HTMLResponse)

@@ -66,9 +66,15 @@
                                         </small>
                                     </div>
                                     <div class="stream-status">
-                                        <span class="badge bg-success">
+                                        {% if stream.status %}
+                                        <span class="badge bg-success" data-bs-toggle="tooltip" title="{{ stream.status_reason }}">
                                             <i class="fas fa-circle me-1"></i>Активен
                                         </span>
+                                        {% else %}
+                                        <span class="badge bg-danger" data-bs-toggle="tooltip" title="{{ stream.status_reason }}">
+                                            <i class="fas fa-circle me-1"></i>Неактивен
+                                        </span>
+                                        {% endif %}
                                     </div>
                                 </div>
                             </div>
