@@ -23,6 +23,7 @@ COPY app/ ./app/
 # Set environment variables
 ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
+ENV HOSTNAME=localhost
 
 # Expose ports
 EXPOSE 8000
