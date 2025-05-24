@@ -43,6 +43,14 @@
 2. **Страница добавления потока**: Добавление нового RTMP-потока для конвертации в RTSP
 3. **Удаление потока**: Удаление потока из конвертера
 
+#### Скриншоты веб-интерфейса
+
+![Главная страница](.github/screenshots/Screenshot%202025-05-25%20at%2000.55.28.png)
+*Главная страница с потоками*
+
+![Страница добавления потока](.github/screenshots/Screenshot%202025-05-25%20at%2000.55.34.png)
+*Форма для добавления нового потока*
+
 ### Добавление потока
 
 Чтобы добавить новый поток:
@@ -83,6 +91,9 @@ rtsp://localhost:8554/my_stream
 - **Swagger UI**: [http://localhost:8000/api/docs](http://localhost:8000/api/docs)
 - **ReDoc**: [http://localhost:8000/api/redoc](http://localhost:8000/api/redoc)
 - **OpenAPI JSON**: [http://localhost:8000/api/openapi.json](http://localhost:8000/api/openapi.json)
+
+![Swagger UI](.github/screenshots/Screenshot%202025-05-25%20at%2000.59.09.png)
+*Интерактивная документация Swagger UI для тестирования API*
 
 Swagger UI позволяет:
 
@@ -186,6 +197,9 @@ DELETE /api/streams/{stream_name}
 1. Проверьте, что директория `data` существует и доступна для записи
 2. Убедитесь, что файл базы данных SQLite (`data/streams.db`) существует
 3. Если используете Docker, убедитесь, что том правильно смонтирован
+
+![Структура базы данных](.github/screenshots/Screenshot%202025-05-25%20at%2000.59.09.png)
+*Просмотр структуры и содержимого базы данных SQLite*
 
 ## Разработка
 
