@@ -1,29 +1,29 @@
 {% extends "base.html" %}
 
-{% block title %}RTMP to RTSP Converter - Stream Logs{% endblock %}
+{% block title %}Конвертер RTMP в RTSP - Логи потока{% endblock %}
 
 {% block content %}
 <div class="row">
     <div class="col-12">
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1>Logs for Stream: {{ stream_name }}</h1>
-            <a href="/" class="btn btn-primary">Back to Streams</a>
+            <h1>Логи для потока: {{ stream_name }}</h1>
+            <a href="/" class="btn btn-primary">Вернуться к потокам</a>
         </div>
 
         <div class="card">
             <div class="card-body">
                 <div id="loading" class="text-center">
                     <div class="spinner-border" role="status">
-                        <span class="visually-hidden">Loading...</span>
+                        <span class="visually-hidden">Загрузка...</span>
                     </div>
-                    <p>Loading logs...</p>
+                    <p>Загрузка логов...</p>
                 </div>
                 <pre id="logs-container" class="logs-container" style="display: none;"></pre>
                 <div id="error-message" class="alert alert-danger" style="display: none;">
-                    Error loading logs. Please try again later.
+                    Ошибка загрузки логов. Пожалуйста, попробуйте позже.
                 </div>
                 <div id="no-logs" class="alert alert-info" style="display: none;">
-                    No logs available for this stream.
+                    Для этого потока нет доступных логов.
                 </div>
             </div>
         </div>
@@ -57,7 +57,7 @@
         fetch('{{ logs_file_url }}')
             .then(response => {
                 if (!response.ok) {
-                    throw new Error('Network response was not ok');
+                    throw new Error('Сетевой ответ не был успешным');
                 }
                 return response.text();
             })
@@ -71,7 +71,7 @@
                 }
             })
             .catch(error => {
-                console.error('Error fetching logs:', error);
+                console.error('Ошибка при получении логов:', error);
                 loading.style.display = 'none';
                 errorMessage.style.display = 'block';
             });

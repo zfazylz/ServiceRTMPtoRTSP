@@ -1,98 +1,98 @@
-# RTMP to RTSP Converter
+# Конвертер RTMP в RTSP
 
-A web application for converting RTMP streams to RTSP streams using FastAPI and FFmpeg.
+Веб-приложение для конвертации RTMP-потоков в RTSP-потоки с использованием FastAPI и FFmpeg.
 
-## Features
+## Возможности
 
-- Convert RTMP streams to RTSP streams
-- Web interface for managing streams
-- Add, view, and delete streams
-- RESTful API for programmatic access
-- Dockerized for easy deployment
-- SQLite database for stream persistence
-- Automatic stream reinitialization on application restart
+- Конвертация RTMP-потоков в RTSP-потоки
+- Веб-интерфейс для управления потоками
+- Добавление, просмотр и удаление потоков
+- RESTful API для программного доступа
+- Контейнеризация с Docker для простого развертывания
+- База данных SQLite для хранения информации о потоках
+- Автоматическая реинициализация потоков при перезапуске приложения
 
-## Requirements
+## Требования
 
-- Docker and Docker Compose
-- FFmpeg (installed automatically in Docker)
-- RTMP source streams
+- Docker и Docker Compose
+- FFmpeg (устанавливается автоматически в Docker)
+- Исходные RTMP-потоки
 
-## Quick Start
+## Быстрый старт
 
-1. Clone this repository:
+1. Клонируйте этот репозиторий:
    ```bash
    git clone <repository-url>
    cd rtmp-to-rtsp-converter
    ```
 
-2. Start the application with Docker Compose:
+2. Запустите приложение с помощью Docker Compose:
    ```bash
    docker-compose up -d
    ```
 
-3. Access the web interface at http://localhost:8000
+3. Откройте веб-интерфейс по адресу http://localhost:8000
 
-## Usage
+## Использование
 
-### Web Interface
+### Веб-интерфейс
 
-The web interface provides three main pages:
+Веб-интерфейс предоставляет три основные страницы:
 
-1. **Home Page**: View all active streams with their details
-2. **Add Stream Page**: Add a new RTMP stream to convert to RTSP
-3. **Delete Stream**: Remove a stream from the converter
+1. **Главная страница**: Просмотр всех активных потоков с их деталями
+2. **Страница добавления потока**: Добавление нового RTMP-потока для конвертации в RTSP
+3. **Удаление потока**: Удаление потока из конвертера
 
-### Adding a Stream
+### Добавление потока
 
-To add a new stream:
+Чтобы добавить новый поток:
 
-1. Click "Add New Stream" on the home page
-2. Enter the RTMP URL (must start with `rtmp://`)
-3. Enter a unique name for the stream (no spaces allowed)
-4. Specify the RTSP port (default: 8554)
-5. Click "Add Stream"
+1. Нажмите "Добавить новый поток" на главной странице
+2. Введите URL RTMP (должен начинаться с `rtmp://`)
+3. Введите уникальное имя для потока (пробелы не допускаются)
+4. Укажите порт RTSP (по умолчанию: 8554)
+5. Нажмите "Добавить поток"
 
-### Accessing RTSP Streams
+### Доступ к RTSP-потокам
 
-Once a stream is added, you can access it using any RTSP-compatible player (like VLC):
+После добавления потока вы можете получить к нему доступ с помощью любого RTSP-совместимого плеера (например, VLC):
 
 ```
-rtsp://localhost:PORT/STREAM_NAME
+rtsp://localhost:ПОРТ/ИМЯ_ПОТОКА
 ```
 
-Where:
-- `PORT` is the RTSP port you specified
-- `STREAM_NAME` is the name you gave to the stream
+Где:
+- `ПОРТ` - указанный вами порт RTSP
+- `ИМЯ_ПОТОКА` - имя, которое вы дали потоку
 
-Example:
+Пример:
 ```
 rtsp://localhost:8554/my_stream
 ```
 
-## API Documentation
+## Документация API
 
-The application provides a RESTful API for programmatic access:
+Приложение предоставляет RESTful API для программного доступа:
 
-### Get All Streams
+### Получить все потоки
 
 ```
 GET /api/streams
 ```
 
-### Get a Specific Stream
+### Получить конкретный поток
 
 ```
 GET /api/streams/{stream_name}
 ```
 
-### Add a New Stream
+### Добавить новый поток
 
 ```
 POST /api/streams
 ```
 
-Request body:
+Тело запроса:
 ```json
 {
   "rtmp_url": "rtmp://example.com/live/stream",
@@ -101,65 +101,65 @@ Request body:
 }
 ```
 
-### Delete a Stream
+### Удалить поток
 
 ```
 DELETE /api/streams/{stream_name}
 ```
 
-## Stream Persistence
+## Сохранение потоков
 
-The application uses SQLite to store stream information, ensuring that streams persist even if the application is restarted. When the application starts up, it automatically loads all saved streams from the database and restarts them.
+Приложение использует SQLite для хранения информации о потоках, обеспечивая их сохранение даже при перезапуске приложения. При запуске приложение автоматически загружает все сохраненные потоки из базы данных и перезапускает их.
 
-### Database Location
+### Расположение базы данных
 
-The SQLite database is stored in the `data` directory at the project root. In Docker, this directory is mounted as a volume to ensure persistence across container restarts.
+База данных SQLite хранится в директории `data` в корне проекта. В Docker эта директория монтируется как том для обеспечения сохранности данных при перезапуске контейнера.
 
-## Troubleshooting
+## Устранение неполадок
 
-### RTSP Streaming Issues
+### Проблемы с RTSP-потоками
 
-If you have issues with RTSP streaming, try using host networking mode:
+Если у вас возникают проблемы с RTSP-потоками, попробуйте использовать режим сетевого хоста:
 
-1. Edit `docker-compose.yml`
-2. Uncomment the `network_mode: host` line
-3. Comment out the `ports` section
-4. Restart the application:
+1. Отредактируйте `docker-compose.yml`
+2. Раскомментируйте строку `network_mode: host`
+3. Закомментируйте секцию `ports`
+4. Перезапустите приложение:
    ```bash
    docker-compose down
    docker-compose up -d
    ```
 
-### FFmpeg Errors
+### Ошибки FFmpeg
 
-If you see FFmpeg errors in the logs, check:
+Если вы видите ошибки FFmpeg в логах, проверьте:
 
-1. The RTMP URL is correct and accessible
-2. The RTMP stream is active and running
-3. The RTSP port is not already in use
+1. URL RTMP корректен и доступен
+2. RTMP-поток активен и работает
+3. Порт RTSP не используется другим приложением
 
-### Database Issues
+### Проблемы с базой данных
 
-If you experience issues with stream persistence:
+Если у вас возникают проблемы с сохранением потоков:
 
-1. Check that the `data` directory exists and is writable
-2. Verify that the SQLite database file (`data/streams.db`) exists
-3. If using Docker, ensure the volume is properly mounted
+1. Проверьте, что директория `data` существует и доступна для записи
+2. Убедитесь, что файл базы данных SQLite (`data/streams.db`) существует
+3. Если используете Docker, убедитесь, что том правильно смонтирован
 
-## Development
+## Разработка
 
-To run the application in development mode:
+Для запуска приложения в режиме разработки:
 
-1. Install the requirements:
+1. Установите зависимости:
    ```bash
    pip install -r requirements.txt
    ```
 
-2. Run the application:
+2. Запустите приложение:
    ```bash
    uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
    ```
 
-## License
+## Лицензия
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+Этот проект лицензирован под лицензией MIT - см. файл LICENSE для подробностей.

@@ -1,47 +1,47 @@
 {% extends "base.html" %}
 
-{% block title %}RTMP to RTSP Converter - Add Stream{% endblock %}
+{% block title %}Конвертер RTMP в RTSP - Добавление потока{% endblock %}
 
 {% block content %}
 <div class="row">
     <div class="col-md-8 offset-md-2">
-        <h1 class="mb-4">Add New Stream</h1>
-        
+        <h1 class="mb-4">Добавить новый поток</h1>
+
         {% if error %}
             <div class="alert alert-danger">
                 {{ error }}
             </div>
         {% endif %}
-        
+
         <div class="card">
             <div class="card-body">
                 <form method="post" action="/add">
                     <div class="mb-3">
-                        <label for="rtmp_url" class="form-label">RTMP URL</label>
+                        <label for="rtmp_url" class="form-label">URL RTMP</label>
                         <input type="text" class="form-control" id="rtmp_url" name="rtmp_url" 
                                placeholder="rtmp://example.com/live/stream" required
-                               pattern="rtmp://.*" title="URL must start with rtmp://">
-                        <div class="form-text">The source RTMP stream URL (must start with rtmp://)</div>
+                               pattern="rtmp://.*" title="URL должен начинаться с rtmp://">
+                        <div class="form-text">URL исходного RTMP-потока (должен начинаться с rtmp://)</div>
                     </div>
-                    
+
                     <div class="mb-3">
-                        <label for="stream_name" class="form-label">Stream Name</label>
+                        <label for="stream_name" class="form-label">Имя потока</label>
                         <input type="text" class="form-control" id="stream_name" name="stream_name" 
                                placeholder="my_stream" required
-                               pattern="[^\s]+" title="Stream name cannot contain spaces">
-                        <div class="form-text">A unique name for this stream (no spaces allowed)</div>
+                               pattern="[^\s]+" title="Имя потока не может содержать пробелы">
+                        <div class="form-text">Уникальное имя для этого потока (пробелы не допускаются)</div>
                     </div>
-                    
+
                     <div class="mb-3">
-                        <label for="rtsp_port" class="form-label">RTSP Port</label>
+                        <label for="rtsp_port" class="form-label">Порт RTSP</label>
                         <input type="number" class="form-control" id="rtsp_port" name="rtsp_port" 
                                value="8554" min="1024" max="65535" required>
-                        <div class="form-text">The port to use for the RTSP server (between 1024 and 65535)</div>
+                        <div class="form-text">Порт для использования RTSP-сервером (между 1024 и 65535)</div>
                     </div>
-                    
+
                     <div class="d-flex justify-content-between">
-                        <a href="/" class="btn btn-secondary">Cancel</a>
-                        <button type="submit" class="btn btn-primary">Add Stream</button>
+                        <a href="/" class="btn btn-secondary">Отмена</a>
+                        <button type="submit" class="btn btn-primary">Добавить поток</button>
                     </div>
                 </form>
             </div>

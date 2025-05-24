@@ -35,8 +35,8 @@ logger = logging.getLogger(__name__)
 
 # Initialize FastAPI app
 app = FastAPI(
-    title="RTMP to RTSP Converter",
-    description="A web application for converting RTMP streams to RTSP streams",
+    title="Конвертер RTMP в RTSP",
+    description="Веб-приложение для конвертации RTMP-потоков в RTSP-потоки",
     version="1.0.0"
 )
 
@@ -58,19 +58,19 @@ class StreamCreate(BaseModel):
     @validator('rtmp_url')
     def validate_rtmp_url(cls, v):
         if not v.startswith('rtmp://'):
-            raise ValueError('RTMP URL must start with rtmp://')
+            raise ValueError('URL RTMP должен начинаться с rtmp://')
         return v
 
     @validator('stream_name')
     def validate_stream_name(cls, v):
         if not v or ' ' in v:
-            raise ValueError('Stream name cannot be empty or contain spaces')
+            raise ValueError('Имя потока не может быть пустым или содержать пробелы')
         return v
 
     @validator('rtsp_port')
     def validate_rtsp_port(cls, v):
         if v < 1024 or v > 65535:
-            raise ValueError('RTSP port must be between 1024 and 65535')
+            raise ValueError('Порт RTSP должен быть между 1024 и 65535')
         return v
 
 class Stream(BaseModel):
@@ -128,7 +128,7 @@ async def add_stream(
                 "add_stream.html",
                 {
                     "request": request,
-                    "error": f"Failed to add stream '{stream_data.stream_name}'. It may already exist or there was an error starting the converter."
+                    "error": f"Не удалось добавить поток '{stream_data.stream_name}'. Возможно, он уже существует или произошла ошибка при запуске конвертера."
                 }
             )
 
@@ -144,7 +144,7 @@ async def add_stream(
         logger.error(f"Error adding stream: {str(e)}")
         return templates.TemplateResponse(
             "add_stream.html",
-            {"request": request, "error": f"An unexpected error occurred: {str(e)}"}
+            {"request": request, "error": f"Произошла непредвиденная ошибка: {str(e)}"}
         )
 
 @app.post("/delete/{stream_name}")
@@ -152,7 +152,7 @@ async def delete_stream(stream_name: str):
     """Delete a stream."""
     success = stream_manager.remove_stream(stream_name)
     if not success:
-        raise HTTPException(status_code=404, detail=f"Stream '{stream_name}' not found")
+        raise HTTPException(status_code=404, detail=f"Поток '{stream_name}' не найден")
     return RedirectResponse(url="/", status_code=303)
 
 @app.get("/api/streams", response_model=List[Stream])
@@ -165,7 +165,7 @@ async def get_stream(stream_name: str, request: Request):
     """Get a specific stream (API endpoint)."""
     stream = stream_manager.get_stream(stream_name, host=request.url.hostname)
     if not stream:
-        raise HTTPException(status_code=404, detail=f"Stream '{stream_name}' not found")
+        raise HTTPException(status_code=404, detail=f"Поток '{stream_name}' не найден")
     return stream
 
 @app.get("/logs/{stream_name}", response_class=HTMLResponse)
@@ -173,7 +173,7 @@ async def view_stream_logs(stream_name: str, request: Request):
     """View logs for a specific stream."""
     stream = stream_manager.get_stream(stream_name, host=request.url.hostname)
     if stream is None:
-        raise HTTPException(status_code=404, detail=f"Stream '{stream_name}' not found")
+        raise HTTPException(status_code=404, detail=f"Поток '{stream_name}' не найден")
     return templates.TemplateResponse(
         "stream_logs.html",
         {"request": request, "stream_name": stream_name, "logs_file_url": stream["logs_file_url"]}
@@ -192,7 +192,7 @@ async def create_stream(stream: StreamCreate, request: Request):
     if not success:
         raise HTTPException(
             status_code=400, 
-            detail=f"Failed to add stream '{stream.stream_name}'. It may already exist or there was an error starting the converter."
+            detail=f"Не удалось добавить поток '{stream.stream_name}'. Возможно, он уже существует или произошла ошибка при запуске конвертера."
         )
 
     return stream_manager.get_stream(stream.stream_name, host=request.url.hostname)
@@ -202,8 +202,8 @@ async def remove_stream(stream_name: str):
     """Remove a stream (API endpoint)."""
     success = stream_manager.remove_stream(stream_name)
     if not success:
-        raise HTTPException(status_code=404, detail=f"Stream '{stream_name}' not found")
-    return {"message": f"Stream '{stream_name}' removed successfully"}
+        raise HTTPException(status_code=404, detail=f"Поток '{stream_name}' не найден")
+    return {"message": f"Поток '{stream_name}' успешно удален"}
 
 # Startup event handler
 @app.on_event("startup")
